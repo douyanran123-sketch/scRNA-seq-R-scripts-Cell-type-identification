@@ -56,3 +56,60 @@ ggplot(cell_type_summary, aes(x = reorder(singleR_labels, -count), y = count, fi
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
+
+
+
+#=============================手动注释==================================
+# 找出每个cluster的差异表达基因
+cluster_markers <- FindAllMarkers(
+  object = seu_obj,
+  only.pos = TRUE,          # 只保留上调的基因
+  min.pct = 0.25,           # 在至少25%的细胞中表达
+  logfc.threshold = 0.25    # log2 fold change阈值
+)
+
+#FindMarkers()   找两组数据之间的marker进行对比
+
+# 查看每个cluster的前几个marker基因
+top_markers <- cluster_markers %>%
+  group_by(cluster) %>%
+  slice_max(n = 10, order_by = avg_log2FC)
+
+print(top_markers)
+
+DimPlot(seu_obj, reduction = 'umap', label = TRUE)
+DimPlot(seu_obj, reduction = 'tsne', label = TRUE)
+
+
+#===========================方法一====================================
+# http://117.50.127.228/CellMarker/
+
+
+# 定义一些常见的细胞类型marker基因
+feature_genes <- c(
+  "CD3D", "CD3E", "CD4", "CD8A", # T细胞
+  "CD19", "CD79A", "MS4A1",      # B细胞
+  "CD14", "CD68", "FCGR3A",      # 单核/巨噬细胞
+  "NKG7", "GNLY",                # NK细胞
+  "PPBP", "PF4",                 # 血小板
+  "COL1A1", "COL1A2",            # 成纤维细胞
+  "PECAM1", "VWF",               # 内皮细胞
+  "EPCAM", "KRT8", "KRT18"       # 上皮细胞
+)
+
+# 可视化这些marker基因的表达
+DotPlot(seu_obj, features = feature_genes) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 或者在UMAP上查看特定marker的表达
+p1 <- FeaturePlot(seu_obj, features = c("CD3D", "CD3E", "CD4", "CD8A"))
+p2 <- DimPlot(seu_obj, reduction = 'umap', label = TRUE)
+
+p1 | p2
+
+# 添加celltype
+seu_obj@meta.data$cell_type <- 'unknown'
+
+seu_obj@meta.data$cell_type[seu_obj@meta.data$seurat_clusters %in% c(29,27,5,8,24)] <- 'T_cells'
+
+DimPlot(seu_obj,group.by = 'cell_type', reduction = 'umap')
